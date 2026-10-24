@@ -5,6 +5,7 @@ Improved: 2D adaptation of Isensee et al., BRATS 2017 contribution (2018),
 https://arxiv.org/abs/1802.10508, section 2.1 and figure 1.
 """
 import torch
+from pathlib import Path
 from torch import nn
 from torch.nn import functional as F
 
@@ -103,3 +104,12 @@ def build_model(name: str, width: int = 16) -> nn.Module:
     if name not in ('basic', 'improved'):
         raise ValueError('model must be basic or improved')
     return {'basic': BasicUNet, 'improved': ImprovedUNet}[name](width=width)
+
+
+def load_checkpoint(path: Path, device: str) -> dict:
+    """Frozen weights record their own architecture; never guess it from flags."""
+    checkpoint = torch.load(path, map_location=device, weights_only=True)
+    config = checkpoint.get('config') or {}
+    if 'model' not in config or 'width' not in config:
+        raise ValueError('checkpoint has no model/width configuration')
+    return checkpoint

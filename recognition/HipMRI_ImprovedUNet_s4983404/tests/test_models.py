@@ -2,11 +2,12 @@
 from pathlib import Path
 import io
 import sys
+import tempfile
 import unittest
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from modules import build_model
+from modules import build_model, load_checkpoint
 from metrics import segmentation_loss, confusion_counts, scores
 
 
@@ -57,6 +58,16 @@ class ModelTests(unittest.TestCase):
     def test_invalid_model(self) -> None:
         with self.assertRaises(ValueError):
             build_model('unknown')
+
+    def test_checkpoint_loader_requires_architecture(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'best.pt'
+            torch.save({'state_dict': {}}, path)
+            with self.assertRaises(ValueError):
+                load_checkpoint(path, 'cpu')
+            torch.save({'state_dict': build_model('basic', 4).state_dict(),
+                        'config': {'model': 'basic', 'width': 4}}, path)
+            self.assertEqual(load_checkpoint(path, 'cpu')['config']['width'], 4)
 
 
 if __name__ == '__main__':

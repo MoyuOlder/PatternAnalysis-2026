@@ -1,6 +1,8 @@
 """Training/validation driver and explicit, frozen-checkpoint test evaluation.
 
 No test evaluation during training. Each invocation requires a NEW run directory.
+Arguments, patient splits and checkpoint architecture are all checked before that
+directory is created, so a rejected run leaves no half-built output behind.
 """
 from pathlib import Path
 import argparse
@@ -13,7 +15,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from dataset import ROOT, HipMRISlices, check_patient_splits, collate_slices
-from modules import build_model
+from modules import build_model, load_checkpoint
 from metrics import segmentation_loss, confusion_counts, scores
 
 
@@ -136,8 +138,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=ROOT)
     parser.add_argument('--run', type=Path, required=True)
-    parser.add_argument('--model', choices=['basic', 'improved'], default='basic')
-    parser.add_argument('--width', type=int, default=16)
+    parser.add_argument('--model', choices=['basic', 'improved'],
+                        help='defaults to basic, or to the --evaluate checkpoint')
+    parser.add_argument('--width', type=int,
+                        help='defaults to 16, or to the --evaluate checkpoint')
     parser.add_argument('--epochs', type=int, default=40)
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--workers', type=int, default=2)
@@ -154,10 +158,50 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def validate_args(args: argparse.Namespace) -> None:
+    """Reject impossible settings before any output directory is created."""
+    for name, value in (('epochs', args.epochs), ('batch size', args.batch_size)):
+        if value < 1:
+            raise ValueError(f'{name} must be positive')
+    for name, value in (('width', args.width), ('limit', args.limit),
+                        ('validation limit', args.val_limit)):
+        if value is not None and value < 1:
+            raise ValueError(f'{name} must be positive')
+    if args.workers < 0:
+        raise ValueError('workers must not be negative')
+    if args.lr <= 0:
+        raise ValueError('learning rate must be positive')
+    if args.time_budget <= 0:
+        raise ValueError('time budget must be positive')
+    if args.device == 'cuda' and not torch.cuda.is_available():
+        raise ValueError('CUDA requested but unavailable; pass --device cpu')
+
+
+def resolve_architecture(args: argparse.Namespace,
+                         checkpoint: dict | None) -> tuple[str, int]:
+    """Saved checkpoints decide the architecture; flags may only confirm it."""
+    if checkpoint is None:
+        return args.model or 'basic', args.width or 16
+    saved = checkpoint.get('config')
+    if not isinstance(saved, dict) or 'model' not in saved or 'width' not in saved:
+        raise ValueError('checkpoint has no model/width configuration')
+    for name, given, expected in (('--model', args.model, saved['model']),
+                                  ('--width', args.width, saved['width'])):
+        if given is not None and given != expected:
+            raise ValueError(f'{name}={given} conflicts with checkpoint {expected}')
+    return saved['model'], saved['width']
+
+
 def main() -> None:
     args = parse_args()
-    if min(args.width, args.epochs, args.batch_size) < 1:
-        raise ValueError('width, epochs, batch size must be positive')
+    validate_args(args)
+    checkpoint = (load_checkpoint(args.evaluate, args.device)
+                  if args.evaluate else None)
+    args.model, args.width = resolve_architecture(args, checkpoint)
+    check_patient_splits(args.root)
+    model = build_model(args.model, args.width).to(args.device)
+    if checkpoint is not None:
+        model.load_state_dict(checkpoint['state_dict'])
     args.run.mkdir(parents=True, exist_ok=False)
     logging.getLogger().addHandler(logging.FileHandler(args.run/'train.log', encoding='utf-8'))
     random.seed(args.seed)
@@ -166,20 +210,14 @@ def main() -> None:
     torch.set_num_threads(2)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    check_patient_splits(args.root)
     if args.device == 'cuda':
         torch.cuda.reset_peak_memory_stats()
-    model = build_model(args.model, args.width).to(args.device)
     save_json(args.run/'config.json', vars_serializable(args))
     save_json(args.run/'environment.json', {
         'python': platform.python_version(), 'torch': torch.__version__, 'numpy': np.__version__,
         'hardware': torch.cuda.get_device_name() if args.device == 'cuda' else platform.processor(),
         'cuda': torch.version.cuda})
-    if args.evaluate:
-        checkpoint = torch.load(args.evaluate, map_location=args.device, weights_only=True)
-        if (checkpoint['config']['model'], checkpoint['config']['width']) != (args.model, args.width):
-            raise ValueError('checkpoint architecture mismatch')
-        model.load_state_dict(checkpoint['state_dict'])
+    if checkpoint is not None:
         args.val_limit = None
         loader = make_loader(args, args.split)
         save_json(args.run/'evaluation.json', run_epoch(model, loader, args.device))

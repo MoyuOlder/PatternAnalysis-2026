@@ -6,7 +6,7 @@ import nibabel as nib
 import numpy as np
 import torch
 from dataset import ROOT, HipMRISlices, load_pair, normalize_image
-from modules import build_model
+from modules import build_model, load_checkpoint
 
 
 def panel(image: np.ndarray, truth: np.ndarray | None, prediction: np.ndarray,
@@ -93,8 +93,10 @@ def save_prediction(image: torch.Tensor, truth: np.ndarray | None,
 
 def main() -> None:
     args = parse_args()
+    if args.device == 'cuda' and not torch.cuda.is_available():
+        raise ValueError('CUDA requested but unavailable; pass --device cpu')
     pairs = prediction_paths(args)
-    checkpoint = torch.load(args.checkpoint, map_location=args.device, weights_only=True)
+    checkpoint = load_checkpoint(args.checkpoint, args.device)
     config = checkpoint['config']
     model = build_model(config['model'], config['width']).to(args.device).eval()
     model.load_state_dict(checkpoint['state_dict'])

@@ -66,6 +66,9 @@ python predict.py --device cpu --split validate --count 3 \
 The retained checkpoint path is in the student's account; another user must obtain
 an authorized copy or retrain. Weights are not downloaded by cloning the repository.
 Commands that write outputs require a new output directory. Do not overwrite previous results.
+Arguments, checkpoint architecture, patient splits and model construction are all checked
+before that directory is created, so a rejected start leaves no half-built run behind.
+`--evaluate` reads `--model` and `--width` from the checkpoint; a different value is refused.
 Use Slurm for GPU training, not the login node. No `--mem` request on this cluster;
 `comp3710` jobs require `--account=comp3710`. `submit_smoke.sh` is 15 minutes on
 `a100-test`. The measured 20-epoch runs use `sbatch submit_train.sh basic` or

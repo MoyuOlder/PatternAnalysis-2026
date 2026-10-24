@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from scipy import ndimage
 from dataset import ROOT, HipMRISlices
-from modules import build_model
+from modules import build_model, load_checkpoint
 from predict import panel
 
 
@@ -40,14 +40,16 @@ def main() -> None:
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--device', choices=['cpu', 'cuda'], default='cuda')
     args = parser.parse_args()
-    args.output.mkdir(parents=True, exist_ok=False)
+    if args.device == 'cuda' and not torch.cuda.is_available():
+        raise ValueError('CUDA requested but unavailable; pass --device cpu')
     torch.set_num_threads(2)
-    checkpoint = torch.load(args.checkpoint, map_location=args.device, weights_only=True)
+    checkpoint = load_checkpoint(args.checkpoint, args.device)
     config = checkpoint['config']
     model = build_model(config['model'], config['width']).to(args.device).eval()
     model.load_state_dict(checkpoint['state_dict'])
-    logging.info('Loaded checkpoint epoch=%d', checkpoint['epoch'])
     dataset = HipMRISlices(args.root, 'validate')
+    args.output.mkdir(parents=True, exist_ok=False)
+    logging.info('Loaded checkpoint epoch=%d', checkpoint['epoch'])
     rows = []
     for image, target, name in dataset:
         with torch.inference_mode():

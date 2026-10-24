@@ -101,8 +101,8 @@ sbatch submit_evaluate.sh improved "runs/improved_full_JOBID/best.pt"
 The evaluation script accepts the model and checkpoint instead of historical job
 IDs. It writes `runs/<model>_test_<evaluation-jobid>/evaluation.json`, resources
 and configuration, plus `runs/<model>_validation_<evaluation-jobid>/` for boundary
-analysis. These scripts expect the formal width-16 recipe. For a different width,
-use `train.py --evaluate ... --model ... --width ...` in a suitable allocation.
+analysis. The checkpoint itself now supplies `--model` and `--width`; pass either
+flag only to confirm it, and a conflicting value is refused before any output exists.
 
 The original test set has already been evaluated. Reproduction must not turn
 test results into new tuning decisions; keep the original result tables intact.
@@ -145,9 +145,32 @@ explicit CPU execution:
 | Real checkpoint | `improved_full_679896/best.pt` predicted one validation slice through `--input` with no labels; the saved mask matched the earlier labeled prediction for that file exactly |
 | Rejected input | A 3D volume, non-finite pixels, a non-NIfTI file, a missing `--labels` directory, non-positive `--count` and `--labels` without `--input` all raised errors instead of writing masks |
 
-The six-test row in the first table describes the earlier checkout; nine is the
-current test count.
+The six-test row in the first table describes the earlier checkout; nine was the
+count after the prediction pass, and fourteen after the start-up-guard pass below.
 
-Detailed local evidence is retained in `_work/reproduce_final_1.txt` and
-`_work/test_unlabeled_1.txt` outside the submission repository. The isolated
-remote run directories retain their outputs.
+### Start-up guards
+
+The same fresh directory `~/hipmri_reproduce_20261024_unlabeled_v2` was reused, so
+the guards were checked against the same environment and explicit CPU execution.
+Checks now run in this order: arguments, checkpoint architecture, patient splits,
+model construction, and only then the new run directory.
+
+| Check | Observed result |
+|---|---|
+| Unit tests | All fourteen passed, adding four driver guards and one checkpoint-loader check |
+| Rejected settings | Non-positive epochs, batch size, width, limit and validation limit, negative workers, zero learning rate and zero time budget each raised before any output |
+| Architecture source | `improved_full_679896/best.pt` resolved to `improved 16` and `basic_full_679897/best.pt` to `basic 16` with no `--model`/`--width` flags; both weight sets loaded into the rebuilt models |
+| Conflicting flags | `--model basic` against the improved checkpoint raised `--model=basic conflicts with checkpoint improved`; matching flags were still accepted |
+| No half-built run | A missing dataset root raised `FileNotFoundError` and a conflicting `--width` raised `ValueError`, both leaving the requested run directory absent |
+| Evaluation end to end | A synthetic one-slice root plus a width-4 checkpoint wrote `config.json` (`improved`, 4), `evaluation.json` (one sample) and `resources.json` without arch flags |
+| Device guard | `--device cuda` on the login node raised `CUDA requested but unavailable; pass --device cpu` in `predict.py` and `analyse_failures.py`, and no output directory was created |
+| Prediction regression | The unlabeled and labeled prediction paths still wrote a matching mask and panel for one validation slice after the shared loader change |
+
+The module MD5 sums of `train.py`, `predict.py`, `modules.py`, `analyse_failures.py`
+and `tests/test_models.py` on the remote copy matched the local files exactly, and
+`tests/test_train.py` had already matched at `a1da948611dde556b579f03ccc8ffd47`.
+
+Detailed local evidence is retained in `_work/reproduce_final_1.txt`,
+`_work/test_unlabeled_1.txt`, `_work/item2_check.txt` and `_work/item2_final.txt`
+outside the submission repository. The isolated remote run directories retain
+their outputs.
