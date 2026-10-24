@@ -46,23 +46,26 @@ until provenance is verified.
 ## Environment and use
 
 Verified Rangpur versions: Python 3.11.13 (recorded in both completed runs),
-PyTorch 2.14.0+cu130, NumPy 2.4.6, nibabel 5.4.2, matplotlib 3.11.1.
+PyTorch 2.14.0+cu130, NumPy 2.4.6, nibabel 5.4.2, matplotlib 3.11.1,
+SciPy 1.17.1 (boundary analysis and its tests).
 Use the existing `~/venv`. No nilearn or pytest needed. Local PyTorch cannot import
 `c10.dll`; user approved equivalent CPU tests on Rangpur before GPU submission.
 
 ```bash
+# Start inside recognition/HipMRI_ImprovedUNet_s4983404 on Rangpur.
+source "$HOME/venv/bin/activate"
+export OMP_NUM_THREADS=2
 python -m unittest discover -s tests -v
 python audit_data.py --output audit_new
-sbatch submit_smoke.sh
-python train.py --model basic --run runs/basic_seed2026 --epochs 20 --cache --workers 0 --time-budget 1000
-python train.py --model improved --run runs/improved_seed2026 --epochs 20 --cache --workers 0 --time-budget 1000
-python predict.py --checkpoint runs/improved_seed2026/best.pt --output runs/predictions
-# Only after freezing configuration, evaluate each model once on test:
-python train.py --model improved --evaluate runs/improved_seed2026/best.pt \
-  --run runs/improved_test --split test
+# Small CPU inference check, using the original retained checkpoint:
+python predict.py --device cpu --split validate --count 3 \
+  --checkpoint "$HOME/hipmri_report_20261020_v4/runs/improved_full_679896/best.pt" \
+  --output runs/improved_cpu_preview
 ```
 
-Each command requires a new output directory. Do not overwrite previous results.
+The retained checkpoint path is in the student's account; another user must obtain
+an authorized copy or retrain. Weights are not downloaded by cloning the repository.
+Commands that write outputs require a new output directory. Do not overwrite previous results.
 Use Slurm for GPU training, not the login node. No `--mem` request on this cluster;
 `comp3710` jobs require `--account=comp3710`. `submit_smoke.sh` is 15 minutes on
 `a100-test`. The measured 20-epoch runs use `sbatch submit_train.sh basic` or
@@ -71,6 +74,8 @@ Run JSON records config/versions/hardware; training saves validation-selected we
 history, curves, log and resource measurements. Predict preserves native output affine.
 Datasets and weights remain excluded from Git. Trained weight locations and
 reproduction instructions are listed at the end of this report.
+See [Reproduction guide](REPRODUCIBILITY.md) for a clean checkout, CPU checks,
+training and evaluation commands, expected outputs, and verification evidence.
 
 ## Evaluation conventions
 
