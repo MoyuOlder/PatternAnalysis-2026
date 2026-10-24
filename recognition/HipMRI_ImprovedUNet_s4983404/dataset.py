@@ -42,6 +42,17 @@ def check_patient_splits(root: Path) -> dict[str, list[str]]:
     return subjects
 
 
+def normalize_image(image: np.ndarray) -> torch.Tensor:
+    """Use the same native-grid normalization for training and unlabeled inference."""
+    image = np.asarray(image, dtype=np.float32).squeeze()
+    if image.ndim != 2:
+        raise ValueError('expected a 2D slice, not a 3D volume')
+    if not np.isfinite(image).all():
+        raise ValueError('nonfinite image pixels')
+    image = (image - image.mean()) / max(float(image.std()), 1e-6)
+    return torch.from_numpy(image.copy()).unsqueeze(0)
+
+
 def load_pair(image_path: Path, label_path: Path) -> tuple[torch.Tensor, torch.Tensor]:
     image_nifti, label_nifti = nib.load(image_path), nib.load(label_path)
     image = np.asarray(image_nifti.dataobj, dtype=np.float32).squeeze()
@@ -55,8 +66,7 @@ def load_pair(image_path: Path, label_path: Path) -> tuple[torch.Tensor, torch.T
     if not np.isin(labels, np.arange(6)).all():
         raise ValueError('labels must be integer IDs 0..5')
     # Normalize each slice independently; no test statistics enter training.
-    image = (image - image.mean()) / max(float(image.std()), 1e-6)
-    return torch.from_numpy(image.copy()).unsqueeze(0), torch.from_numpy(labels.astype(np.int64))
+    return normalize_image(image), torch.from_numpy(labels.astype(np.int64))
 
 
 class HipMRISlices(Dataset):

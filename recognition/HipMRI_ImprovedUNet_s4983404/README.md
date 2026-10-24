@@ -76,6 +76,9 @@ Datasets and weights remain excluded from Git. Trained weight locations and
 reproduction instructions are listed at the end of this report.
 See [Reproduction guide](REPRODUCIBILITY.md) for a clean checkout, CPU checks,
 training and evaluation commands, expected outputs, and verification evidence.
+For new MRI slices without ground truth, `predict.py --input <file-or-directory>`
+loads 2D NIfTI images directly and generates input/prediction panels. Optional
+`--labels <directory>` adds ground-truth comparisons; see the guide for naming.
 
 ## Evaluation conventions
 

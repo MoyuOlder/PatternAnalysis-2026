@@ -33,7 +33,7 @@ python predict.py --device cpu --split validate --count 3 \
   --output runs/improved_cpu_preview
 ```
 
-The expected test result is six passing tests. The prediction command writes
+The test suite includes model, dataset, boundary and prediction checks. The prediction command writes
 three `pred_*.nii.gz` masks and three four-panel PNGs. Masks preserve the input
 grid/affine and contain uint8 label IDs 0..5. Prediction loads the architecture
 and width from the checkpoint; it does not train a new model. `--split test`
@@ -44,6 +44,21 @@ weights, and other accounts are not assumed to have permission to read this path
 Use an authorized copy via `--checkpoint`, or retrain as below. The corresponding
 basic checkpoint is `runs/basic_full_679897/best.pt` under the same retained root.
 CPU preview time is not the GPU latency reported in the experiment table.
+
+For new 2D slices without segmentation labels, use `--input` with a single
+`.nii`/`.nii.gz` file or a directory of slices:
+
+```bash
+python predict.py --device cpu --checkpoint /path/to/best.pt \
+  --input /path/to/mri_slices --count 5 --output runs/new_mri_preview
+```
+
+This mode uses the same per-image normalization and saves masks plus two-panel
+input/prediction figures. True 3D volumes are rejected; singleton axes such as
+`(H, W, 1)` are preserved in the saved mask. `--count` selects up to that many
+evenly spaced files from the sorted directory. Optional `--labels /path/to/masks`
+restores four-panel comparisons: mask names match image names, except a leading
+`case_` becomes `seg_`. Without `--input`, the existing course-split mode is unchanged.
 
 For a small training/save/load check rather than an accuracy experiment:
 
@@ -116,5 +131,23 @@ test evaluation was run for this verification, so the new evaluation wrapper's
 GPU execution was not remeasured. The login-node CUDA-driver warning emitted
 during CPU gradient tests did not prevent the checks from passing.
 
-Detailed local evidence is retained in `_work/reproduce_final_1.txt` outside the
-submission repository. The isolated remote run directories retain their outputs.
+### Unlabeled prediction pass
+
+The prediction changes were checked the same day in the separate fresh directory
+`~/hipmri_reproduce_20261024_unlabeled_v2`, using the same environment and
+explicit CPU execution:
+
+| Check | Observed result |
+|---|---|
+| Unit tests | All nine passed, including the three prediction checks added in this pass |
+| Synthetic unlabeled input | `--input` on one saved slice without `--labels` produced a `pred_*.nii.gz` mask with the source shape/affine, uint8 storage and IDs 0..5, plus a two-panel PNG |
+| Labeled comparison | Adding `--labels` restored the four-panel figure and wrote the same mask as the unlabeled run |
+| Real checkpoint | `improved_full_679896/best.pt` predicted one validation slice through `--input` with no labels; the saved mask matched the earlier labeled prediction for that file exactly |
+| Rejected input | A 3D volume, non-finite pixels, a non-NIfTI file, a missing `--labels` directory, non-positive `--count` and `--labels` without `--input` all raised errors instead of writing masks |
+
+The six-test row in the first table describes the earlier checkout; nine is the
+current test count.
+
+Detailed local evidence is retained in `_work/reproduce_final_1.txt` and
+`_work/test_unlabeled_1.txt` outside the submission repository. The isolated
+remote run directories retain their outputs.
