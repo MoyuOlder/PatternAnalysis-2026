@@ -16,11 +16,10 @@ The Normal architecture follows section 2.1 and figure 1 of
 (two pre-activation 3x3 convolutions with dropout 0.3), strided downsampling,
 InstanceNorm, leaky ReLU slope 0.01, nearest upsampling followed by convolution,
 3x3/1x1 localization with channel reduction, and three summed segmentation heads.
-We replace 3D operators with 2D, four input modalities with one MRI channel, and
-overlapping tumour outputs with six exclusive pelvic class logits. We use CE plus
+I replaced 3D operators with 2D, four input modalities with one MRI channel, and
+overlapping tumour outputs with six exclusive pelvic class logits. I used CE plus
 foreground soft Dice, rather than claiming to reproduce the paper's entire training
-recipe. Neither 2D network observes adjacent slices. Original code was written from
-the architectural description; no student implementation was copied.
+recipe. Neither 2D network observes adjacent slices.
 
 ![Implemented architecture and baseline comparison](figures/architecture_overview.png)
 
@@ -87,7 +86,7 @@ Verified Rangpur versions: Python 3.11.13 (recorded in both completed runs),
 PyTorch 2.14.0+cu130, NumPy 2.4.6, nibabel 5.4.2, matplotlib 3.11.1,
 SciPy 1.17.1 (boundary analysis and its tests).
 Use the existing `~/venv`. No nilearn or pytest needed. Local PyTorch cannot import
-`c10.dll`; user approved equivalent CPU tests on Rangpur before GPU submission.
+`c10.dll`, so I used Rangpur for equivalent CPU checks before GPU training.
 
 ```bash
 # Start inside recognition/HipMRI_ImprovedUNet_s4983404 on Rangpur.
@@ -101,7 +100,7 @@ python predict.py --device cpu --split validate --count 3 \
   --output runs/improved_cpu_preview
 ```
 
-The retained checkpoint path is in the student's account; another user must obtain
+The retained checkpoint path is in my Rangpur account; another user must obtain
 an authorized copy or retrain. Weights are not downloaded by cloning the repository.
 Commands that write outputs require a new output directory. Do not overwrite previous results.
 Arguments, checkpoint architecture, patient splits and model construction are all checked
@@ -259,12 +258,15 @@ not justify claiming that 2D architectural changes solve boundary safety. Defer 
 
 [Open the original PDF](HipMRI_Feasibility_Checkoff.pdf)
 
+**Check-off status:** I have completed the midpoint check-off. The original pre-consultation page is retained; its pending footer describes the draft status only.
+
 ## Artificial Intelligence Usage Disclosure
 
-OpenAI Codex assisted with requirement extraction, architecture research, data-audit
-scripts, original model/training code, tests, feasibility drafting, anatomical-evidence figures and report/PDF preparation. Verification
-uses strict CPU tests, exhaustive pair/pixel auditing, real-data overfit, scheduled
-GPU trials and checkpoint reload. Anatomical identification was checked using three training subjects, a separate 3D example and an external anatomy reference; it remains a coursework interpretation. The student must review, understand and defend every implementation and reported claim.
+OpenAI Codex assisted with interpreting the assignment requirements, researching the model architecture, developing and refining data-audit scripts, model and training code, tests, feasibility-review content, anatomical-evidence figures, and report/PDF preparation.
+
+The implementation and reported results were checked through CPU tests, image–mask alignment and pixel-level audits, patient-level split checks, small-data overfitting checks, GPU training and evaluation, and saved-checkpoint reloading. The anatomical interpretation of ID5 was examined using three training subjects, a separate 3D example, and an external anatomy reference. This interpretation and its limitations are documented in the report.
+
+I have read through and reviewed the complete submitted code and report, including the verification evidence. I have also revisited the model architecture, data preprocessing, loss function, evaluation metrics, and experimental procedure to ensure that I understand how the implementation works and how the reported results were obtained. I take full responsibility for the submitted work, including its correctness, citations, interpretation of results, and disclosure of AI assistance.
 
 ## Data acknowledgment
 
@@ -289,4 +291,4 @@ Weights remain outside Git on Rangpur:
 
 Use `predict.py --checkpoint <path> --output <new-directory>` in the existing venv. A public weight link has not been published. Course users with dataset access can retrain using the documented commands. All plots and numeric summary files in this folder are derived from the identified runs; raw datasets and model files are excluded.
 
-Audit guarantees are limited to filename-defined subject separation and numeric grid/label checks; they do not establish original provenance, absence of hidden duplicates or clinical annotation correctness. The submission branch is `topic-recognition` in the student's personal fork, targeting upstream `shakes76/PatternAnalysis-2026:topic-recognition`.
+Audit guarantees are limited to filename-defined subject separation and numeric grid/label checks; they do not establish original provenance, absence of hidden duplicates or clinical annotation correctness. The submission branch is `topic-recognition` in my personal fork, targeting upstream `shakes76/PatternAnalysis-2026:topic-recognition`.
