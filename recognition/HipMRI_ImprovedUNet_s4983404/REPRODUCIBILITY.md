@@ -16,6 +16,8 @@ NumPy 2.4.6, nibabel 5.4.2, matplotlib 3.11.1 and SciPy 1.17.1.
 SciPy is needed by `analyse_failures.py` and `tests/test_boundaries.py`.
 No pytest or nilearn is required. These are measured environment versions,
 not a portable installer: other machines need a compatible PyTorch build.
+The same pins are collected in `requirements.txt` for `pip install -r`; that
+file records what the frozen results used, it does not remove the build caveat.
 On a CPU-only machine, explicitly select `--device cpu`.
 
 The shared data must be available at
@@ -169,6 +171,12 @@ model construction, and only then the new run directory.
 The module MD5 sums of `train.py`, `predict.py`, `modules.py`, `analyse_failures.py`
 and `tests/test_models.py` on the remote copy matched the local files exactly, and
 `tests/test_train.py` had already matched at `a1da948611dde556b579f03ccc8ffd47`.
+
+`tests/test_metrics.py` was added afterwards to pin the metric conventions, which
+brings the suite to twenty-one tests. All twenty-one passed on a fresh clone of
+`topic-recognition` at `2a62df5` once that one file was copied in, with the local
+and remote copies of `tests/test_metrics.py` matching at
+`1cde89f4dafd7326d0254c6e0c42a500`.
 
 Detailed local evidence is retained in `_work/reproduce_final_1.txt`,
 `_work/test_unlabeled_1.txt`, `_work/item2_check.txt` and `_work/item2_final.txt`
