@@ -2,7 +2,7 @@
 
 Research prototype for prostate/pelvic organ segmentation. Easy baseline: basic 2D U-Net;
 Normal main model: a documented 2D adaptation of the approved Improved U-Net reference.
-Hard is a conditional future option. Both 20-epoch models have measured frozen-test results below; anatomical label names remain unconfirmed.
+Both 20-epoch models have frozen-test results. Anatomical exploration identifies ID5 as the prostate for this coursework; the evidence and its limits are documented below.
 
 ## Working principles and reference mapping
 
@@ -22,6 +22,10 @@ foreground soft Dice, rather than claiming to reproduce the paper's entire train
 recipe. Neither 2D network observes adjacent slices. Original code was written from
 the architectural description; no student implementation was copied.
 
+![Implemented architecture and baseline comparison](figures/architecture_overview.png)
+
+The schematic follows `modules.py`: channel widths 16/32/64/128/256, four paired decoder stages, and three six-channel heads summed at the original image resolution. It illustrates the implemented 2D adaptation rather than the original paper's 3D network.
+
 ## Data and leakage prevention
 
 Read-only root: `/home/groups/comp3710/HipMRI_Study_open/keras_slices_data`.
@@ -37,11 +41,45 @@ mark padding, which is excluded from loss and confusion counts. Inference stays 
 Six one-hot channels remain present even on slices missing an organ. Optional training
 augmentation flips the first array axis jointly; disabled for the first controlled runs.
 
-Label IDs are currently reported numerically: 0..5 observed; 5 is an anatomical
-prostate candidate supported by visual inspection but pending source confirmation. Do not treat that inference as
-an authoritative label dictionary. Slice identity affines and 1-unit spacings do not
-establish trustworthy original physical geometry; boundary distances should use pixels
-until provenance is verified.
+### Class distribution and patient separation
+
+| Split | Patients | Image/mask pairs | ID5-positive slices | Real pixels |
+|---|---:|---:|---:|---:|
+| train | 31 | 11,460 | 4,152 | 375,767,040 |
+| validate | 4 | 660 | 254 | 21,626,880 |
+| test | 3 | 540 | 195 | 17,694,720 |
+
+| Label ID | Train pixels (%) | Validation pixels (%) | Test pixels (%) |
+|---|---:|---:|---:|
+| 0 | 17.271 | 13.759 | 16.168 |
+| 1 | 67.511 | 70.332 | 68.289 |
+| 2 | 12.495 | 13.105 | 12.252 |
+| 3 | 1.942 | 1.748 | 2.372 |
+| 4 | 0.357 | 0.561 | 0.580 |
+| 5 | 0.426 | 0.496 | 0.339 |
+
+Percentages use all native, unpadded mask pixels within each split, not the fraction of slices or patients. ID5 occupies less than 0.5% of pixels in every split, so overall pixel accuracy would be misleading. The test ID5 share is smaller than training; the fixed patient split is retained rather than adjusted to make these distributions match. CE plus foreground soft Dice is the shared training objective; no resampling or test-driven class weighting was introduced.
+
+Validation subjects are 036-039 and test subjects 040-042. The 31 training IDs listed in the audit are disjoint from both sets; repeated weeks stay within their patient split. These checks establish filename-defined patient separation, not an exhaustive pixel-hash duplicate search. The original [full audit summary](evidence/data_audit_20261020.json) retains counts and subject lists; its historical label-status field describes the audit date.
+
+### Anatomical identification of ID5
+
+For this coursework, **ID5 is identified as the prostate by anatomical exploration of the supplied masks and MRI images**. This is a documented interpretation of the data, rather than a label dictionary supplied by the teaching team. Numeric ID5 is retained beside the anatomical name so the result can be checked independently.
+
+The interpretation uses two checks. First, three preselected training subjects (004, 015 and 025, week 0) show a small central pelvic ID5 region. For each subject the displayed slice has the largest ID5 area in that week, selected from ground truth without consulting predictions. In subjects 004 and 025 it lies immediately below the fluid-bright, ID3-labelled bladder region; subject 015 shows the central target in a slice without ID3. These panels support location and appearance, not prediction performance or a population-wide anatomical validation.
+
+![Training MRI and mask evidence for ID5](figures/label5_training_evidence.png)
+
+Second, the separate 3D sample B006_Week0 was inspected in sagittal, coronal and axial views after canonical reorientation using its image affine. The ID3 region follows the bladder; ID4 follows the posterior rectal region. ID5 is inferior to ID3 and anterior to ID4 in the same coordinate frame, and forms a compact central region. These observed spatial relationships match the prostate's position below the bladder and in front of the rectum described by the [National Cancer Institute anatomy resource](https://training.seer.cancer.gov/prostate/anatomy/). The external resource explains anatomy; it does not certify HipMRI label numbers.
+
+![Orthogonal 2D slices from a separate 3D MRI volume, used only for label exploration](figures/label5_3d_context.png)
+
+This figure is a dataset-inspection aid, not a 3D model result. No 3D network was trained or evaluated: both submitted models take one 2D slice at a time and use `Conv2d`. The selected main model remains the Normal-difficulty 2D Improved U-Net.
+
+The [exploration record](evidence/label_exploration_20261028.json) lists the exact files, selection rule, class counts, orientations and centroids. It was added on 28 October after the frozen experiments; the training recipe, validation-based checkpoint choice and test predictions were unchanged. The resulting coursework interpretation is **prostate (ID5): baseline test Dice 0.8453 and Improved test Dice 0.8614**, both above the 0.75 coursework target under this identification. This is not a clinician-validated annotation dictionary.
+
+The separate 3D example is supporting anatomical context, not proof of an exact patient or slice mapping to the supplied 2D folders. The 2D identity-like affines and 1-unit spacings do not preserve trustworthy original physical geometry. Accordingly, boundary distances remain in pixels, and 2D mask-transition endpoints are not renamed anatomical base/apex. The numerical results remain meaningful independently of the anatomical interpretation.
+
 
 ## Environment and use
 
@@ -89,15 +127,14 @@ Exclusive argmax predictions, no tuned threshold. Aggregate integer confusion co
 over pixels for per-class Dice=2TP/(2TP+FP+FN), IoU=TP/(TP+FP+FN).
 Both-empty class is undefined (`null`), not a perfect score; one-empty gives zero.
 Also report patient-level pooled counts; test has only three patients.
-Checkpoints use validation label-5 pooled Dice provisionally; confirm its anatomical
-meaning before interpreting this as a confirmed prostate score. No test feedback enters model selection.
+Checkpoints use validation ID5 pooled Dice. ID5 is interpreted as prostate on the anatomical evidence above; this later reporting clarification does not change the checkpoint-selection rule. No test feedback enters model selection.
 GPU latency: batch one, five warmups, 30 synchronized forwards, excluding I/O;
 peak allocated and reserved memory includes training. This is slice latency, not
 full-volume latency. Validation failure analysis includes pixel HD95; millimetre distances require trustworthy geometry.
 
 ## Frozen 20-epoch experiment results
 
-Numeric class IDs are retained: anatomical label mapping is still unconfirmed.
+Numeric IDs are retained for traceability; ID5 is interpreted as prostate using the exploration above.
 Checkpoints were selected using validation only; test argmax was evaluated once per model.
 
 | Model / job | Epochs / selected epoch | Best val ID5 Dice | Test ID5 Dice | Test ID5 IoU |
@@ -137,7 +174,7 @@ Both models use the frozen shared recipe in [evaluation plan](EVALUATION_PLAN.md
 
 Basic: five worst positive-label slices. Improved: two worst misses plus three explicit error modes.
 Selection is deliberately biased toward failures; these panels are not test averages.
-ID5 remains an anatomical candidate. HD95 uses symmetric pooled 4-connected surface distances in pixels.
+ID5 is the anatomically identified prostate target in this report. HD95 uses symmetric pooled 4-connected surface distances in pixels.
 Both-empty and one-empty distances are undefined, with reasons retained in JSON.
 
 **basic:** median finite slice HD95 4.00 px (237 finite; 389 both-empty; 34 one-empty). Finite-only median omits total misses.
@@ -212,48 +249,22 @@ support these observations; slice-wise significance claims would be unjustified.
 
 **Recommendation:** retain Improved as the coursework Normal model and the basic
 U-Net as the implemented comparison/fallback. Both fit comfortably in the measured
-resource budget. Use the prototype only for expert-reviewed drafts; verify the ID5
-label dictionary and original geometry before asserting the prostate target or
-anatomical base/apex findings. The modest pooled gain and persisting regressions do
+resource budget. The data exploration supports using prostate (ID5) as the coursework target. For any practical use, independent expert review of labels and original geometry is still needed; anatomical base/apex findings cannot be established from these 2D headers. The modest pooled gain and persisting regressions do
 not justify claiming that 2D architectural changes solve boundary safety. Defer Hard
 3D work until these source questions and additional time/data requirements are clear.
 
 ## Midpoint feasibility review
 
-Student: s4983404 | Draft for tutor discussion
+![Original one-page midpoint feasibility review](figures/checkoff_review.png)
 
-**1. Aim and success criteria**
-
-I aim to produce prostate outlines that an imaging specialist can review and correct. I will compare a basic U-Net with an Improved U-Net to see whether the extra complexity gives better boundaries at a reasonable computing cost.
-
-- Keep all images from the same patient in one data split.
-- Target prostate test Dice >= 0.75 and report Dice and IoU for each label.
-- Compare the models and inspect 3-5 examples of boundary errors.
-- Keep GPU memory below 16 GB and record training and prediction time.
-
-**2. Model and data**
-
-I will use HipMRI 2D slices and their segmentation masks. A basic 2D U-Net (Easy) is the baseline. A 2D Improved U-Net (Normal), based on Isensee et al. (2018), is the main model. This uses course ideas including convolution, skip connections, normalization and validation. Both models will use the same data split and preprocessing.
-
-**3. Preliminary evidence**
-
-The image and mask pairs can be loaded together. The supplied split separates 31 training, 4 validation and 3 test patients. A short training trial has run successfully on Rangpur. These checks support feasibility, but do not establish reliability on new patients.
-
-**4. Risks and next steps**
-
-The test group is small, and some boundaries are unclear. I need to confirm the label numbers and slice direction. Next, I will review the model comparison, local errors and computing cost. Runs are budgeted at up to 20 minutes each. The basic U-Net is the fallback if the Improved model gives little benefit. 3D work is optional if time allows.
-
-References: Ronneberger et al. (2015), U-Net; Isensee et al. (2018), BRATS 2017 contribution. Data: HipMRI Study.
-
-The authoritative one-page review is [HipMRI_Feasibility_Checkoff.pdf](HipMRI_Feasibility_Checkoff.pdf), copied unchanged from the student's workspace-root version. The student confirmed completion of the midpoint tutor check-off on 24 October 2026. The original PDF retains its pre-consultation draft/pending footer; that footer does not describe the current completion status.
+[Open the original PDF](HipMRI_Feasibility_Checkoff.pdf)
 
 ## Artificial Intelligence Usage Disclosure
 
 OpenAI Codex assisted with requirement extraction, architecture research, data-audit
-scripts, original model/training code, tests and feasibility drafting. Verification
+scripts, original model/training code, tests, feasibility drafting, anatomical-evidence figures and report/PDF preparation. Verification
 uses strict CPU tests, exhaustive pair/pixel auditing, real-data overfit, scheduled
-GPU trials and checkpoint reload. These checks and experiments were completed; label provenance remains unresolved. The
-student must review, understand and defend every implementation and reported claim.
+GPU trials and checkpoint reload. Anatomical identification was checked using three training subjects, a separate 3D example and an external anatomy reference; it remains a coursework interpretation. The student must review, understand and defend every implementation and reported claim.
 
 ## Data acknowledgment
 
@@ -261,8 +272,13 @@ Data were provided by HipMRI Study via the COMP3710 course dataset. Follow its
 noncommercial data-use agreement and do not identify or contact participants.
 The agreement recommends https://doi.org/10.1016/j.ijrobp.2015.08.045 for MRI-alone
 treatment planning; its segmentation citation field is blank. No invented segmentation
-reference is supplied. Exact dataset provenance and anatomical label dictionary remain
-to be confirmed.
+reference is supplied. The supplied files do not include an authoritative anatomical label dictionary; the ID5 interpretation and original-geometry limitations are documented above.
+
+## Experiment evidence
+
+Small original logs are included alongside the report: [Basic training, job 679897](evidence/full_679897.out), [Improved training, job 679896](evidence/full_679896.out), and [frozen evaluation, job 679935](evidence/evaluate_679935.out). They are unchanged copies of the retained outputs; the evaluation log also contains the original validation-image export, which was subsequently corrected as described above. Frozen test metrics were unaffected. The [frozen numeric summary](results/frozen_results.json) preserves the reported measurements, and [SHA-256 checksums](evidence/SHA256SUMS.txt) identify the copied audit, exploration and log evidence. These are supporting records rather than additional training experiments.
+
+The original [evaluation plan](EVALUATION_PLAN.md) is preserved as a pre-test record: its candidate-label wording reflects the information available then. The later anatomical exploration clarifies the report interpretation without changing that historical plan or the frozen numbers.
 
 ## Retained weights and reproducibility
 

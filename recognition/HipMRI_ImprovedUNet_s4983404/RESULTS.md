@@ -1,6 +1,6 @@
 ## Frozen 20-epoch experiment results
 
-Numeric class IDs are retained: anatomical label mapping is still unconfirmed.
+Numeric IDs are retained for traceability; ID5 is interpreted as prostate using the anatomical exploration documented in README.md.
 Checkpoints were selected using validation only; test argmax was evaluated once per model.
 
 | Model / job | Epochs / selected epoch | Best val ID5 Dice | Test ID5 Dice | Test ID5 IoU |
@@ -40,7 +40,7 @@ Both models use the frozen shared recipe in [evaluation plan](EVALUATION_PLAN.md
 
 Basic: five worst positive-label slices. Improved: two worst misses plus three explicit error modes.
 Selection is deliberately biased toward failures; these panels are not test averages.
-ID5 remains an anatomical candidate. HD95 uses symmetric pooled 4-connected surface distances in pixels.
+ID5 is interpreted as prostate as documented in README.md. HD95 uses symmetric pooled 4-connected surface distances in pixels.
 Both-empty and one-empty distances are undefined, with reasons retained in JSON.
 
 **basic:** median finite slice HD95 4.00 px (237 finite; 389 both-empty; 34 one-empty). Finite-only median omits total misses.

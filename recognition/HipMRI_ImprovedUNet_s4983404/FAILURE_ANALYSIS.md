@@ -29,8 +29,6 @@ support these observations; slice-wise significance claims would be unjustified.
 
 **Recommendation:** retain Improved as the coursework Normal model and the basic
 U-Net as the implemented comparison/fallback. Both fit comfortably in the measured
-resource budget. Use the prototype only for expert-reviewed drafts; verify the ID5
-label dictionary and original geometry before asserting the prostate target or
-anatomical base/apex findings. The modest pooled gain and persisting regressions do
+resource budget. The data exploration in README.md supports prostate (ID5) as the coursework target. Independent expert review of labels and original geometry is needed for practical use; these 2D headers do not establish anatomical base/apex. The modest pooled gain and persisting regressions do
 not justify claiming that 2D architectural changes solve boundary safety. Defer Hard
 3D work until these source questions and additional time/data requirements are clear.
