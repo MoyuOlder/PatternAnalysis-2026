@@ -54,6 +54,7 @@ def normalize_image(image: np.ndarray) -> torch.Tensor:
 
 
 def load_pair(image_path: Path, label_path: Path) -> tuple[torch.Tensor, torch.Tensor]:
+    """Validate paired native grids and IDs; return normalized image and integer mask."""
     image_nifti, label_nifti = nib.load(image_path), nib.load(label_path)
     image = np.asarray(image_nifti.dataobj, dtype=np.float32).squeeze()
     labels = np.asarray(label_nifti.dataobj, dtype=np.float32).squeeze()

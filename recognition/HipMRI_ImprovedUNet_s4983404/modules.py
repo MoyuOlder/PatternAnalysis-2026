@@ -83,6 +83,7 @@ class ImprovedUNet(nn.Module):
                                   for i in (2, 1, 0))
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """Decode skip features and sum three scale heads as native-size class logits."""
         features = self.stem(image)
         skips = []
         for index, context in enumerate(self.contexts):

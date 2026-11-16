@@ -29,6 +29,7 @@ def make_loader(args: argparse.Namespace, split: str) -> DataLoader:
 
 def run_epoch(model: torch.nn.Module, loader: DataLoader, device: str,
               optimizer: torch.optim.Optimizer | None = None) -> dict:
+    """Train when an optimizer is supplied; otherwise evaluate with per-patient scores."""
     model.train(optimizer is not None)
     confusion = torch.zeros(6, 6, device=device, dtype=torch.int64)
     patient_counts = {}
@@ -103,6 +104,7 @@ def plot_history(history: list[dict], output: Path) -> None:
 
 
 def train(args: argparse.Namespace, model: torch.nn.Module) -> None:
+    """Save the best validation-ID5 checkpoint and check the time budget after each epoch."""
     training, validation = make_loader(args, 'train'), make_loader(args, 'validate')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
     history, best = [], -1.0

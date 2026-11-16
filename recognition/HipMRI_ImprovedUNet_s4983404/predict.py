@@ -53,6 +53,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def prediction_paths(args: argparse.Namespace) -> list[tuple[Path, Path | None]]:
+    """Select evenly spaced split or external slices and check optional mask paths."""
     if args.count <= 0:
         raise ValueError('count must be positive')
     if args.input is None:
@@ -80,6 +81,7 @@ def prediction_paths(args: argparse.Namespace) -> list[tuple[Path, Path | None]]
 def save_prediction(image: torch.Tensor, truth: np.ndarray | None,
                     predicted: np.ndarray, source: nib.Nifti1Image,
                     image_path: Path, output: Path) -> None:
+    """Save a uint8 mask with source shape/affine/header and a comparison panel."""
     header = source.header.copy()
     header.set_data_dtype(np.uint8)
     name = image_path.name

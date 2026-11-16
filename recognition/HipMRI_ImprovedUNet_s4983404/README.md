@@ -4,6 +4,14 @@ Research prototype for prostate/pelvic organ segmentation. Easy baseline: basic 
 Normal main model: a documented 2D adaptation of the approved Improved U-Net reference.
 Both 20-epoch models have frozen-test results. Anatomical exploration identifies ID5 as the prostate for this coursework; the evidence and its limits are documented below.
 
+In radiotherapy planning, prostate contours define the target region and help plan
+radiation delivery while limiting exposure to surrounding pelvic organs, including
+the bladder and rectum. In this project, I compare basic and Improved 2D U-Net
+segmentation of HipMRI slices as a research prototype for proposing prostate (ID5)
+contours for expert review. Such proposals could assist the contouring step; the
+reported boundary failures and original-geometry limitations mean that independent
+expert review is still needed before any practical use.
+
 ## Working principles and reference mapping
 
 Both networks encode images at five resolutions and concatenate encoder features into
